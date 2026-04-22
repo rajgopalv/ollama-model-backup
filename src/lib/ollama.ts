@@ -84,5 +84,6 @@ export function calculateTotalSize(manifest: Manifest): number {
 }
 
 export function getBlobPath(modelDir: string, digest: string): string {
-  return path.join(modelDir, DEFAULT_BLOBS_DIR, digest);
+  const filename = digest.replace('sha256:', 'sha256-');
+  return path.join(modelDir, DEFAULT_BLOBS_DIR, filename);
 }

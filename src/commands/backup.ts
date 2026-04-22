@@ -55,6 +55,7 @@ export async function backup(options: BackupOptions): Promise<void> {
     };
 
     let currentModelIndex = 0;
+    let failedCount = 0;
 
     for (const model of modelsToBackup) {
       currentModelIndex++;
@@ -79,21 +80,28 @@ export async function backup(options: BackupOptions): Promise<void> {
         // Copy blobs
         for (const blob of model.blobs) {
           const blobSrc = getBlobPath(modelLocation, blob);
-          const blobDest = path.join(backupLocation, DEFAULT_BLOBS_DIR, blob);
+          const blobDest = getBlobPath(backupLocation, blob);
 
-          if (fs.existsSync(blobSrc)) {
-            currentFile = blob;
-            await copyFileWithProgress(blobSrc, blobDest, updateProgress);
+          if (!fs.existsSync(blobSrc)) {
+            throw new Error(`Blob file not found: ${blobSrc}`);
           }
+          currentFile = blob;
+          await copyFileWithProgress(blobSrc, blobDest, updateProgress);
         }
 
         modelSpinner.succeed(`${model.name} (${formatBytes(model.totalSize)})`);
       } catch (err) {
         modelSpinner.fail(`Failed to backup ${model.name}: ${err}`);
+        failedCount++;
       }
     }
 
-    spinner.succeed(`Backup complete: ${formatBytes(totalBytes)} copied`);
+    if (failedCount > 0) {
+      spinner.fail(`${failedCount} model(s) failed`);
+      process.exit(1);
+    } else {
+      spinner.succeed(`Backup complete: ${formatBytes(totalBytes)} copied`);
+    }
   } catch (err) {
     spinner.fail(`Backup failed: ${err}`);
     process.exit(1);
