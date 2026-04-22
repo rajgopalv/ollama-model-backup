@@ -64,7 +64,7 @@ export async function restore(options: RestoreOptions): Promise<void> {
         // Copy blobs
         for (const blob of model.blobs) {
           const blobSrc = getBlobPath(backupLocation, blob);
-          const blobDest = path.join(modelLocation, DEFAULT_BLOBS_DIR, blob);
+          const blobDest = getBlobPath(modelLocation, blob);
 
           if (fs.existsSync(blobSrc)) {
             await copyFileWithProgress(blobSrc, blobDest);
