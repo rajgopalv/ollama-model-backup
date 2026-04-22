@@ -1,9 +1,9 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import ora from 'ora';
-import { listModels, getBlobPath } from '../lib/ollama.js';
-import { copyFileWithProgress, formatBytes } from '../lib/fs.js';
-import { DEFAULT_MANIFESTS_DIR, DEFAULT_BLOBS_DIR, DEFAULT_MODEL_LOCATION, ENV_VARS } from '../constants.js';
+import { listModels } from '../lib/ollama.js';
+import { formatBytes } from '../lib/fs.js';
+import { copyModel } from '../lib/model-copy.js';
+import { DEFAULT_MODEL_LOCATION, ENV_VARS } from '../constants.js';
 
 export interface RestoreOptions {
   modelLocation?: string;
@@ -44,36 +44,23 @@ export async function restore(options: RestoreOptions): Promise<void> {
 
     for (const model of modelsToRestore) {
       currentModelIndex++;
-      const modelSpinner = ora(`[${currentModelIndex}/${modelsToRestore.length}] ${model.name}`).start();
 
       if (options.dryRun) {
-        modelSpinner.info(`Would restore ${model.blobs.length} blobs + manifest (${formatBytes(model.totalSize)})`);
+        const dryRunSpinner = ora(`[${currentModelIndex}/${modelsToRestore.length}] ${model.name}`).start();
+        dryRunSpinner.info(`Would restore ${model.blobs.length} blobs + manifest (${formatBytes(model.totalSize)})`);
         continue;
       }
 
       try {
-        // Copy manifest
-        const manifestDest = path.join(
-          modelLocation,
-          DEFAULT_MANIFESTS_DIR,
-          model.manifestPath.replace(path.join(backupLocation, DEFAULT_MANIFESTS_DIR), '').slice(1)
-        );
-
-        await copyFileWithProgress(model.manifestPath, manifestDest);
-
-        // Copy blobs
-        for (const blob of model.blobs) {
-          const blobSrc = getBlobPath(backupLocation, blob);
-          const blobDest = getBlobPath(modelLocation, blob);
-
-          if (fs.existsSync(blobSrc)) {
-            await copyFileWithProgress(blobSrc, blobDest);
-          }
-        }
-
-        modelSpinner.succeed(`${model.name}`);
+        await copyModel(model, {
+          srcBase: backupLocation,
+          destBase: modelLocation,
+          modelIndex: currentModelIndex,
+          totalModels: modelsToRestore.length,
+          checkBlobExists: false,
+        });
       } catch (err) {
-        modelSpinner.fail(`Failed to restore ${model.name}: ${err}`);
+        // Error already logged by copyModel, continue to next model
       }
     }
 

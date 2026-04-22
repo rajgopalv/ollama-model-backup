@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import ora from 'ora';
-import { listModels, getBlobPath, resolveBlobs } from '../lib/ollama.js';
-import { copyFileWithProgress, formatBytes } from '../lib/fs.js';
-import { DEFAULT_MANIFESTS_DIR, DEFAULT_BLOBS_DIR, DEFAULT_MODEL_LOCATION, ENV_VARS } from '../constants.js';
-import type { CopyProgress } from '../types.js';
+import { listModels } from '../lib/ollama.js';
+import { formatBytes } from '../lib/fs.js';
+import { copyModel } from '../lib/model-copy.js';
+import { DEFAULT_MODEL_LOCATION, ENV_VARS } from '../constants.js';
 
 export interface BackupOptions {
   modelLocation?: string;
@@ -51,46 +51,22 @@ export async function backup(options: BackupOptions): Promise<void> {
 
     for (const model of modelsToBackup) {
       currentModelIndex++;
-      let modelBytesCopied = 0;
-
-      const modelSpinner = ora({
-        text: `[${currentModelIndex}/${modelsToBackup.length}] ${model.name}`,
-        suffixText: () => `${formatBytes(modelBytesCopied)} / ${formatBytes(model.totalSize)}`,
-      }).start();
 
       if (options.dryRun) {
-        modelSpinner.info(`Would copy ${model.blobs.length} blobs + manifest (${formatBytes(model.totalSize)})`);
+        const dryRunSpinner = ora(`[${currentModelIndex}/${modelsToBackup.length}] ${model.name}`).start();
+        dryRunSpinner.info(`Would copy ${model.blobs.length} blobs + manifest (${formatBytes(model.totalSize)})`);
         continue;
       }
 
       try {
-        // Copy manifest
-        const manifestDest = path.join(
-          backupLocation,
-          DEFAULT_MANIFESTS_DIR,
-          model.manifestPath.replace(path.join(modelLocation, DEFAULT_MANIFESTS_DIR), '').slice(1)
-        );
-
-        await copyFileWithProgress(manifestDest, manifestDest, (p) => {
-          modelBytesCopied = p.bytesCopied;
+        await copyModel(model, {
+          srcBase: modelLocation,
+          destBase: backupLocation,
+          modelIndex: currentModelIndex,
+          totalModels: modelsToBackup.length,
+          checkBlobExists: true,
         });
-
-        // Copy blobs
-        for (const blob of model.blobs) {
-          const blobSrc = getBlobPath(modelLocation, blob);
-          const blobDest = getBlobPath(backupLocation, blob);
-
-          if (!fs.existsSync(blobSrc)) {
-            throw new Error(`Blob file not found: ${blobSrc}`);
-          }
-          await copyFileWithProgress(blobSrc, blobDest, (p) => {
-            modelBytesCopied = p.bytesCopied;
-          });
-        }
-
-        modelSpinner.succeed(`${model.name} (${formatBytes(model.totalSize)})`);
-      } catch (err) {
-        modelSpinner.fail(`Failed to backup ${model.name}: ${err}`);
+      } catch {
         failedCount++;
       }
     }
