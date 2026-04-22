@@ -46,20 +46,17 @@ export async function backup(options: BackupOptions): Promise<void> {
       totalBytes += model.totalSize;
     }
 
-    let bytesCopied = 0;
-    let currentFile = '';
-
-    const updateProgress = (progress: CopyProgress) => {
-      bytesCopied = progress.bytesCopied;
-      currentFile = progress.filename;
-    };
-
     let currentModelIndex = 0;
     let failedCount = 0;
 
     for (const model of modelsToBackup) {
       currentModelIndex++;
-      const modelSpinner = ora(`[${currentModelIndex}/${modelsToBackup.length}] ${model.name}`).start();
+      let modelBytesCopied = 0;
+
+      const modelSpinner = ora({
+        text: `[${currentModelIndex}/${modelsToBackup.length}] ${model.name}`,
+        suffixText: () => `${formatBytes(modelBytesCopied)} / ${formatBytes(model.totalSize)}`,
+      }).start();
 
       if (options.dryRun) {
         modelSpinner.info(`Would copy ${model.blobs.length} blobs + manifest (${formatBytes(model.totalSize)})`);
@@ -74,8 +71,9 @@ export async function backup(options: BackupOptions): Promise<void> {
           model.manifestPath.replace(path.join(modelLocation, DEFAULT_MANIFESTS_DIR), '').slice(1)
         );
 
-        currentFile = path.basename(manifestDest);
-        await copyFileWithProgress(model.manifestPath, manifestDest, updateProgress);
+        await copyFileWithProgress(manifestDest, manifestDest, (p) => {
+          modelBytesCopied = p.bytesCopied;
+        });
 
         // Copy blobs
         for (const blob of model.blobs) {
@@ -85,8 +83,9 @@ export async function backup(options: BackupOptions): Promise<void> {
           if (!fs.existsSync(blobSrc)) {
             throw new Error(`Blob file not found: ${blobSrc}`);
           }
-          currentFile = blob;
-          await copyFileWithProgress(blobSrc, blobDest, updateProgress);
+          await copyFileWithProgress(blobSrc, blobDest, (p) => {
+            modelBytesCopied = p.bytesCopied;
+          });
         }
 
         modelSpinner.succeed(`${model.name} (${formatBytes(model.totalSize)})`);
