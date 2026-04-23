@@ -12,12 +12,13 @@ Usage
 Options
   --model-location   Ollama models directory (default: ~/${ENV_VARS.MODEL_LOCATION})
   --backup-location  Backup destination
-  --models           Specific models to process (default: all)
+  --model            Specific model to process (default: all)
   --dry-run          Preview without copying
 
 Examples
-  $ ollama-model-backup backup --models llama3
-  $ ollama-model-backup restore --backup-location /path/to/backup --models llama3
+  $ ollama-model-backup backup --model llama3
+  $ ollama-model-backup restore --backup-location /path/to/backup --model llama3
+  $ ollama-model-backup restore --backup-location /path/to/backup --model llama3 --model gemma4
 `,
 
 {
@@ -32,9 +33,10 @@ Examples
       type: 'string',
       short: 'b',
     },
-    models: {
+    model: {
       type: 'string',
       short: 'M',
+      isMultiple: true,
     },
     dryRun: {
       type: 'boolean',
@@ -56,10 +58,10 @@ async function main() {
     process.exit(1);
   }
 
-  const models = cli.flags.models
-    ? (Array.isArray(cli.flags.models) ? cli.flags.models : [cli.flags.models])
+  const models = cli.flags.model
+    ? (Array.isArray(cli.flags.model) ? cli.flags.model : [cli.flags.model])
     : undefined;
-
+  console.log(`Models: ${models}`);
   if (mode === 'backup') {
     await backup({
       modelLocation: cli.flags.modelLocation ?? undefined,

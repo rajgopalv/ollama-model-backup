@@ -22,15 +22,15 @@ npm link  # Optional: make available globally as 'ollama-model-backup'
 
 ```bash
 # Backup models (uses OLLAMA_MODEL_LOCATION and OLLAMA_BACKUP_LOCATION env vars if set)
-ollama-model-backup backup --models llama3 mistral
+ollama-model-backup backup --model llama3 --model mistral-3:9b
 
 # Restore models
-ollama-model-backup restore --models llama3
+ollama-model-backup restore --model llama3
 
 # Backup with explicit paths
-ollama-model-backup backup --model-location /path/to/models --backup-location /path/to/backup --models llama3
+ollama-model-backup backup --model-location /path/to/models --backup-location /path/to/backup --model llama3
 
-# Backup all models (no --models flag)
+# Backup all models (no --model flag)
 ollama-model-backup backup --model-location /path/to/models --backup-location /path/to/backup
 
 # Dry run
@@ -45,7 +45,7 @@ ollama-model-backup backup --dry-run
 
 - `--model-location` - Path to Ollama models directory
 - `--backup-location` - Path to backup directory
-- `--models` - Specific models to backup/restore (default: all)
+- `--model` - Specific models to backup/restore (default: all). Specify --model multiple times for more than one models.
 - `--dry-run` - Show what would be copied without actually copying
 
 ## Environment Variables
@@ -64,11 +64,11 @@ export OLLAMA_BACKUP_LOCATION=/path/to/backup
 
 ```bash
 # Backup specific models
-ollama-model-backup backup --models llama3 mistral
+ollama-model-backup backup --model llama3 --model mistral
 
 # Restore specific models
-ollama-model-backup restore --models llama3
+ollama-model-backup restore --model llama3
 
 # With explicit paths (overrides env vars for this run)
-ollama-model-backup backup --model-location ~/.ollama/models --backup-location /mnt/storage/backup --models llama3
+ollama-model-backup backup --model-location ~/.ollama/models --backup-location /mnt/storage/backup --model llama3
 ```
