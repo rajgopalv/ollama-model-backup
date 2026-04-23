@@ -22,7 +22,7 @@ export async function copyModel(
 
   const modelSpinner = ora({
     text: `[${options.modelIndex}/${options.totalModels}] ${model.name}`,
-    suffixText: () => `${formatBytes(modelBytesCopied)} / ${formatBytes(model.totalSize)}`,
+    suffixText: () => modelBytesCopied !== 0 ? `${formatBytes(modelBytesCopied)} / ${formatBytes(model.totalSize)}` : ''
   }).start();
 
   try {
@@ -55,6 +55,7 @@ export async function copyModel(
       }
     }
 
+    modelBytesCopied = 0;
     modelSpinner.succeed(`${model.name} (${formatBytes(model.totalSize)})`);
   } catch (err) {
     modelSpinner.fail(`Failed to copy ${model.name}: ${err}`);
