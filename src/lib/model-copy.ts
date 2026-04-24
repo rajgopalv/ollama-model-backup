@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import ora from 'ora';
 import { getBlobPath } from './ollama.js';
 import { copyFileWithProgress, formatBytes, calculateChecksum } from './fs.js';
@@ -80,7 +80,7 @@ export async function copyModel(
               }
               // If hash mismatch, we'll proceed to re-copy
               modelSpinner.info(`${baseText} (Existing blob ${shortHash} corrupted, re-copying...)`);
-              modelSpinner.start(); // Restart spinner after .info() stops it
+              modelSpinner.start();
             }
           }
         }

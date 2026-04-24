@@ -5,7 +5,8 @@ import { backup } from './commands/backup.js';
 import { restore } from './commands/restore.js';
 import { list } from './commands/list.js';
 import { ENV_VARS } from './constants.js';
-import {DEFAULT_MODEL_LOCATION} from './constants.js';
+import { DEFAULT_MODEL_LOCATION } from './constants.js';
+
 const cli = meow(`
   Usage
     $ ollama-model-backup <backup|restore|list> [options]

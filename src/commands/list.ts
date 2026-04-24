@@ -89,15 +89,15 @@ function printTable(rows: ComparisonRow[]) {
 
   // Calculate actual widths needed for name
   for (const row of rows) {
-    colWidths[0] = Math.max(colWidths[0], row.name.length + 4);
+    colWidths[0] = Math.max(colWidths[0] || 30, row.name.length + 4);
   }
 
   const headerRow = 
-    headers[0].padEnd(colWidths[0]) +
-    headers[1].padEnd(colWidths[1]) +
-    headers[2].padEnd(colWidths[2]) +
-    headers[3].padEnd(colWidths[3]) +
-    headers[4].padEnd(colWidths[4]);
+    (headers[0] || '').padEnd(colWidths[0] || 30) +
+    (headers[1] || '').padEnd(colWidths[1] || 15) +
+    (headers[2] || '').padEnd(colWidths[2] || 12) +
+    (headers[3] || '').padEnd(colWidths[3] || 10) +
+    (headers[4] || '').padEnd(colWidths[4] || 10);
 
   console.log(headerRow);
 
@@ -109,11 +109,11 @@ function printTable(rows: ComparisonRow[]) {
     }
 
     const line = 
-      row.name.padEnd(colWidths[0]) +
-      row.id.padEnd(colWidths[1]) +
-      formatBytes(row.size).padEnd(colWidths[2]) +
-      ollamaStatus.padEnd(colWidths[3]) +
-      backupStatus.padEnd(colWidths[4]);
+      row.name.padEnd(colWidths[0] || 30) +
+      row.id.padEnd(colWidths[1] || 15) +
+      formatBytes(row.size).padEnd(colWidths[2] || 12) +
+      ollamaStatus.padEnd(colWidths[3] || 10) +
+      backupStatus.padEnd(colWidths[4] || 10);
     
     console.log(line);
   }

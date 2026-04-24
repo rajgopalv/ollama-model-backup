@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import ora from 'ora';
@@ -105,7 +105,7 @@ export async function backup(options: BackupOptions): Promise<void> {
             rmSpinner.fail(`Failed to remove ${model.name}: ${err}`);
           }
         }
-      } catch {
+      } catch (err) {
         failedCount++;
       }
     }
