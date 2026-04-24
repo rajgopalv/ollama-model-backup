@@ -14,6 +14,7 @@ export interface BackupOptions {
 }
 
 export async function backup(options: BackupOptions): Promise<void> {
+  const usingDefaultModelLocation = !options.modelLocation && !process.env[ENV_VARS.MODEL_LOCATION];
   const modelLocation = options.modelLocation || process.env[ENV_VARS.MODEL_LOCATION] || DEFAULT_MODEL_LOCATION;
   const backupLocation = options.backupLocation || process.env[ENV_VARS.BACKUP_LOCATION];
 
@@ -23,6 +24,14 @@ export async function backup(options: BackupOptions): Promise<void> {
 
   if (!backupLocation) {
     throw new Error(`Backup location required. Set --backup-location or ${ENV_VARS.BACKUP_LOCATION}`);
+  }
+
+  if (usingDefaultModelLocation && !fs.existsSync(modelLocation)) {
+    throw new Error(`Default Ollama model directory not found: ${modelLocation}. Set --model-location or ${ENV_VARS.MODEL_LOCATION} to specify a custom location.`);
+  }
+
+  if (usingDefaultModelLocation) {
+    console.log(`Using default Ollama model directory: ${modelLocation}`);
   }
 
   const spinner = ora('Scanning models...').start();

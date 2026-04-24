@@ -12,6 +12,13 @@ export interface CopyModelOptions {
   modelIndex: number;
   totalModels: number;
   checkBlobExists?: boolean;
+  spinner?: {
+    start: () => any;
+    succeed: (text?: string) => any;
+    fail: (text?: string) => any;
+    text: string;
+    suffixText: string | (() => string);
+  };
 }
 
 export async function copyModel(
@@ -20,10 +27,12 @@ export async function copyModel(
 ): Promise<void> {
   let modelBytesCopied = 0;
 
-  const modelSpinner = ora({
+  const modelSpinner = options.spinner || ora({
     text: `[${options.modelIndex}/${options.totalModels}] ${model.name}`,
     suffixText: () => modelBytesCopied !== 0 ? `${formatBytes(modelBytesCopied)} / ${formatBytes(model.totalSize)}` : ''
-  }).start();
+  });
+  
+  modelSpinner.start();
 
   try {
     // Copy manifest

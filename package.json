@@ -1,11 +1,14 @@
 {
   "name": "ollama-model-backup",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "build": "tsc -p tsconfig.build.json",
     "start": "tsx src/index.ts"
   },
   "bin": {
