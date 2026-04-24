@@ -21,6 +21,9 @@ npm link  # Optional: make available globally as 'ollama-model-backup'
 ## Usage
 
 ```bash
+# List models and sync status
+ollama-model-backup list
+
 # Backup models (uses OLLAMA_MODEL_LOCATION and OLLAMA_BACKUP_LOCATION env vars if set)
 ollama-model-backup backup --model llama3 --model mistral-3:9b
 
@@ -39,7 +42,7 @@ ollama-model-backup backup --dry-run
 
 ## Arguments
 
-- `backup|restore` - Operation mode (required)
+- `backup|restore|list` - Operation mode (required)
 
 ## Options
 
@@ -47,6 +50,15 @@ ollama-model-backup backup --dry-run
 - `--backup-location` - Path to backup directory
 - `--model` - Specific models to backup/restore (default: all). Specify --model multiple times for more than one models.
 - `--dry-run` - Show what would be copied without actually copying
+
+## Status Indicators (List Command)
+
+When running `ollama-model-backup list`, the following indicators are used:
+
+- `✓` in **OLLAMA**: Model exists locally in the Ollama directory.
+- `✓` in **BACKUP**: Model is safely backed up and the version (ID) matches exactly.
+- `?` in **BACKUP**: Model exists in backup but the ID is different from local (mismatch).
+- `-`: Model is missing from that location.
 
 ## Environment Variables
 
@@ -63,6 +75,9 @@ export OLLAMA_BACKUP_LOCATION=/path/to/backup
 ## Examples
 
 ```bash
+# List all models and their sync state
+ollama-model-backup list
+
 # Backup specific models
 ollama-model-backup backup --model llama3 --model mistral
 
