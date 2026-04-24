@@ -40,7 +40,14 @@ export async function backup(options: BackupOptions): Promise<void> {
     const allModels = await listModels(modelLocation);
 
     const modelsToBackup = options.models && options.models.length > 0
-      ? allModels.filter(m => options.models!.some(target => m.name.includes(target)))
+      ? allModels.filter(m => options.models!.some(target => {
+          // Exact match (e.g., "library/llama3:latest") 
+          // OR partial name match followed by colon (e.g., "llama3" matches "library/llama3:latest")
+          return m.name === target || 
+                 m.name.includes(`/${target}:`) || 
+                 m.name.endsWith(`/${target}`) ||
+                 m.name === `library/${target}:latest`;
+        }))
       : allModels;
 
     if (modelsToBackup.length === 0) {

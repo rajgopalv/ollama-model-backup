@@ -40,7 +40,12 @@ export async function restore(options: RestoreOptions): Promise<void> {
     const allModels = await listModels(backupLocation);
 
     const modelsToRestore = options.models && options.models.length > 0
-      ? allModels.filter(m => options.models!.some(target => m.name.includes(target)))
+      ? allModels.filter(m => options.models!.some(target => {
+          return m.name === target || 
+                 m.name.includes(`/${target}:`) || 
+                 m.name.endsWith(`/${target}`) ||
+                 m.name === `library/${target}:latest`;
+        }))
       : allModels;
 
     if (modelsToRestore.length === 0) {
