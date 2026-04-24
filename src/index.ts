@@ -3,11 +3,12 @@
 import meow from 'meow';
 import { backup } from './commands/backup.js';
 import { restore } from './commands/restore.js';
+import { list } from './commands/list.js';
 import { ENV_VARS } from './constants.js';
 
 const cli = meow(`
 Usage
-  $ ollama-model-backup <backup|restore> [options]
+  $ ollama-model-backup <backup|restore|list> [options]
 
 Options
   --model-location   Ollama models directory (default: ~/${ENV_VARS.MODEL_LOCATION})
@@ -16,9 +17,9 @@ Options
   --dry-run          Preview without copying
 
 Examples
+  $ ollama-model-backup list
   $ ollama-model-backup backup --model llama3
   $ ollama-model-backup restore --backup-location /path/to/backup --model llama3
-  $ ollama-model-backup restore --backup-location /path/to/backup --model llama3 --model gemma4
 `,
 
 {
@@ -48,8 +49,8 @@ Examples
 async function main() {
   const [mode] = cli.input;
 
-  if (!mode || (mode !== 'backup' && mode !== 'restore')) {
-    console.error('Error: Mode must be "backup" or "restore"');
+  if (!mode || (mode !== 'backup' && mode !== 'restore' && mode !== 'list')) {
+    console.error('Error: Mode must be "backup", "restore" or "list"');
     process.exit(1);
   }
 
@@ -61,8 +62,13 @@ async function main() {
   const models = cli.flags.model
     ? (Array.isArray(cli.flags.model) ? cli.flags.model : [cli.flags.model])
     : undefined;
-  console.log(`Models: ${models}`);
-  if (mode === 'backup') {
+
+  if (mode === 'list') {
+    await list({
+      modelLocation: cli.flags.modelLocation ?? undefined,
+      backupLocation: cli.flags.backupLocation ?? undefined,
+    });
+  } else if (mode === 'backup') {
     await backup({
       modelLocation: cli.flags.modelLocation ?? undefined,
       backupLocation: cli.flags.backupLocation ?? undefined,
