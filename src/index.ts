@@ -11,14 +11,16 @@ Usage
   $ ollama-model-backup <backup|restore|list> [options]
 
 Options
-  --model-location   Ollama models directory (default: ~/${ENV_VARS.MODEL_LOCATION})
-  --backup-location  Backup destination
-  --model            Specific model to process (default: all)
-  --dry-run          Preview without copying
+  --model-location               Ollama models directory (default: ~/${ENV_VARS.MODEL_LOCATION})
+  --backup-location              Backup destination
+  --model                        Specific model to process (default: all)
+  --dry-run                      Preview without copying
+  --rm-after-backup              Remove model from Ollama after successful backup
+  --ignore-checksum-verification Skip SHA-256 verification of blobs
 
 Examples
   $ ollama-model-backup list
-  $ ollama-model-backup backup --model llama3
+  $ ollama-model-backup backup --model llama3 --rm-after-backup
   $ ollama-model-backup restore --backup-location /path/to/backup --model llama3
 `,
 
@@ -42,6 +44,12 @@ Examples
     dryRun: {
       type: 'boolean',
       short: 'd',
+    },
+    rmAfterBackup: {
+      type: 'boolean',
+    },
+    ignoreChecksumVerification: {
+      type: 'boolean',
     },
   },
 });
@@ -74,6 +82,8 @@ async function main() {
       backupLocation: cli.flags.backupLocation ?? undefined,
       models,
       dryRun: cli.flags.dryRun ?? undefined,
+      rmAfterBackup: cli.flags.rmAfterBackup ?? undefined,
+      ignoreChecksumVerification: cli.flags.ignoreChecksumVerification ?? undefined,
     });
   } else {
     await restore({
@@ -81,6 +91,7 @@ async function main() {
       backupLocation: cli.flags.backupLocation ?? undefined,
       models,
       dryRun: cli.flags.dryRun ?? undefined,
+      ignoreChecksumVerification: cli.flags.ignoreChecksumVerification ?? undefined,
     });
   }
 }

@@ -1,8 +1,23 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { createReadStream, createWriteStream } from 'fs';
 import type { CopyProgress } from '../types.js';
 
+export async function calculateChecksum(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = createReadStream(filePath);
+    stream.on('data', (data) => hash.update(data));
+    stream.on('end', () => resolve(`sha256:${hash.digest('hex')}`));
+    stream.on('error', reject);
+  });
+}
+
+/**
+ * Copies a file from src to dest. 
+ * Note: Caller is responsible for any temporary file logic or cleanup.
+ */
 export async function copyFileWithProgress(
   src: string,
   dest: string,

@@ -10,11 +10,14 @@ test('listModels should find all models in the fixture', async (t) => {
   const tempDir = await setupTestEnv();
   try {
     const models = await listModels(tempDir);
-    // Fixture has llama3:latest, llama3:8b, and mistral:latest
+    // Fixture has llama3:latest (21+21=42), llama3:8b (24+24=48), and mistral:latest (22+22=44)
     assert.strictEqual(models.length, 3);
     assert.ok(models.find(m => m.name === 'library/llama3:latest'));
     assert.ok(models.find(m => m.name === 'library/llama3:8b'));
     assert.ok(models.find(m => m.name === 'library/mistral:latest'));
+    
+    const llama3 = models.find(m => m.name === 'library/llama3:latest')!;
+    assert.strictEqual(llama3.totalSize, 42);
   } finally {
     cleanupTestEnv(tempDir);
   }
@@ -38,7 +41,6 @@ test('listModels should skip invalid manifest JSON', async (t) => {
     fs.writeFileSync(invalidPath, '{ invalid json }');
 
     const models = await listModels(tempDir);
-    // Should still only have the 3 good ones
     assert.strictEqual(models.length, 3);
     assert.ok(!models.find(m => m.name.includes('broken')));
   } finally {
@@ -71,7 +73,7 @@ test('listModels should skip if tag is a directory instead of a file', async (t)
     fs.mkdirSync(dirAsTag, { recursive: true });
 
     const models = await listModels(tempDir);
-    assert.strictEqual(models.length, 3); // Should not count the directory
+    assert.strictEqual(models.length, 3);
   } finally {
     cleanupTestEnv(tempDir);
   }

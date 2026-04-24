@@ -1,19 +1,27 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import ora from 'ora';
 import { listModels } from '../lib/ollama.js';
 import { formatBytes } from '../lib/fs.js';
 import { copyModel } from '../lib/model-copy.js';
 import { DEFAULT_MODEL_LOCATION, ENV_VARS } from '../constants.js';
 
+const execAsync = promisify(exec);
+
 export interface BackupOptions {
   modelLocation?: string;
   backupLocation?: string;
   models?: string[];
   dryRun?: boolean;
+  rmAfterBackup?: boolean;
+  ignoreChecksumVerification?: boolean;
+  execFn?: (command: string) => Promise<{ stdout: string, stderr: string }>;
 }
 
 export async function backup(options: BackupOptions): Promise<void> {
+  const executor = options.execFn || execAsync;
   const usingDefaultModelLocation = !options.modelLocation && !process.env[ENV_VARS.MODEL_LOCATION];
   const modelLocation = options.modelLocation || process.env[ENV_VARS.MODEL_LOCATION] || DEFAULT_MODEL_LOCATION;
   const backupLocation = options.backupLocation || process.env[ENV_VARS.BACKUP_LOCATION];
@@ -41,8 +49,6 @@ export async function backup(options: BackupOptions): Promise<void> {
 
     const modelsToBackup = options.models && options.models.length > 0
       ? allModels.filter(m => options.models!.some(target => {
-          // Exact match (e.g., "library/llama3:latest") 
-          // OR partial name match followed by colon (e.g., "llama3" matches "library/llama3:latest")
           return m.name === target || 
                  m.name.includes(`/${target}:`) || 
                  m.name.endsWith(`/${target}`) ||
@@ -64,6 +70,7 @@ export async function backup(options: BackupOptions): Promise<void> {
 
     let currentModelIndex = 0;
     let failedCount = 0;
+    const successfulModelNames: string[] = [];
 
     for (const model of modelsToBackup) {
       currentModelIndex++;
@@ -71,6 +78,9 @@ export async function backup(options: BackupOptions): Promise<void> {
       if (options.dryRun) {
         const dryRunSpinner = ora(`[${currentModelIndex}/${modelsToBackup.length}] ${model.name}`).start();
         dryRunSpinner.info(`Would copy ${model.blobs.length} blobs + manifest (${formatBytes(model.totalSize)})`);
+        if (options.rmAfterBackup) {
+          dryRunSpinner.info(`Would execute: ollama rm ${model.name}`);
+        }
         continue;
       }
 
@@ -81,7 +91,20 @@ export async function backup(options: BackupOptions): Promise<void> {
           modelIndex: currentModelIndex,
           totalModels: modelsToBackup.length,
           checkBlobExists: true,
+          ignoreChecksumVerification: options.ignoreChecksumVerification,
         });
+
+        successfulModelNames.push(model.name);
+
+        if (options.rmAfterBackup) {
+          const rmSpinner = ora(`Removing ${model.name} from Ollama...`).start();
+          try {
+            await executor(`ollama rm ${model.name}`);
+            rmSpinner.succeed(`Removed ${model.name} from Ollama`);
+          } catch (err) {
+            rmSpinner.fail(`Failed to remove ${model.name}: ${err}`);
+          }
+        }
       } catch {
         failedCount++;
       }
@@ -92,6 +115,11 @@ export async function backup(options: BackupOptions): Promise<void> {
       process.exit(1);
     } else {
       spinner.succeed(`Backup complete: ${formatBytes(totalBytes)} copied`);
+      
+      if (!options.rmAfterBackup && !options.dryRun && successfulModelNames.length > 0) {
+        console.log('\nTo reclaim space, you can manually remove the backed-up models:\n');
+        console.log(`    $ ollama rm ${successfulModelNames.join(' ')}\n`);
+      }
     }
   } catch (err) {
     spinner.fail(`Backup failed: ${err}`);

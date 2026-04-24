@@ -46,10 +46,12 @@ ollama-model-backup backup --dry-run
 
 ## Options
 
-- `--model-location` - Path to Ollama models directory
-- `--backup-location` - Path to backup directory
-- `--model` - Specific models to backup/restore (default: all). Specify --model multiple times for more than one models.
-- `--dry-run` - Show what would be copied without actually copying
+- `--model-location`               - Path to Ollama models directory
+- `--backup-location`              - Path to backup directory
+- `--model`                        - Specific models to backup/restore (default: all). Specify --model multiple times for more than one models.
+- `--dry-run`                      - Show what would be copied without actually copying
+- `--rm-after-backup`              - Remove the model from Ollama after a successful backup
+- `--ignore-checksum-verification` - Skip SHA-256 verification of blobs (faster but less secure)
 
 ## Status Indicators (List Command)
 
@@ -80,6 +82,9 @@ ollama-model-backup list
 
 # Backup specific models
 ollama-model-backup backup --model llama3 --model mistral
+
+# Backup and remove from Ollama to reclaim SSD space
+ollama-model-backup backup --model llama3 --rm-after-backup
 
 # Restore specific models
 ollama-model-backup restore --model llama3

@@ -11,6 +11,7 @@ export interface RestoreOptions {
   backupLocation?: string;
   models?: string[];
   dryRun?: boolean;
+  ignoreChecksumVerification?: boolean;
 }
 
 export async function restore(options: RestoreOptions): Promise<void> {
@@ -73,6 +74,7 @@ export async function restore(options: RestoreOptions): Promise<void> {
           modelIndex: currentModelIndex,
           totalModels: modelsToRestore.length,
           checkBlobExists: false,
+          ignoreChecksumVerification: options.ignoreChecksumVerification,
         });
       } catch (err) {
         // Error already logged by copyModel, continue to next model
