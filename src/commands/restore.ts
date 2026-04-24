@@ -12,9 +12,12 @@ export interface RestoreOptions {
   models?: string[];
   dryRun?: boolean;
   ignoreChecksumVerification?: boolean;
+  signal?: AbortSignal;
 }
 
 export async function restore(options: RestoreOptions): Promise<void> {
+  options.signal?.throwIfAborted();
+
   const usingDefaultModelLocation = !options.modelLocation && !process.env[ENV_VARS.MODEL_LOCATION];
   const modelLocation = options.modelLocation || process.env[ENV_VARS.MODEL_LOCATION] || DEFAULT_MODEL_LOCATION;
   const backupLocation = options.backupLocation || process.env[ENV_VARS.BACKUP_LOCATION];
@@ -59,6 +62,7 @@ export async function restore(options: RestoreOptions): Promise<void> {
     let currentModelIndex = 0;
 
     for (const model of modelsToRestore) {
+      options.signal?.throwIfAborted();
       currentModelIndex++;
 
       if (options.dryRun) {
@@ -75,14 +79,24 @@ export async function restore(options: RestoreOptions): Promise<void> {
           totalModels: modelsToRestore.length,
           checkBlobExists: false,
           ignoreChecksumVerification: options.ignoreChecksumVerification,
+          signal: options.signal,
         });
       } catch (err) {
+        const isCancel = err instanceof Error && (err.message === 'AbortError' || err.name === 'AbortError' || err.message === 'Operation cancelled');
+        if (isCancel) {
+          throw err;
+        }
         // Error already logged by copyModel, continue to next model
       }
     }
 
     spinner.succeed(`Restore complete`);
   } catch (err) {
+    const isCancel = err instanceof Error && (err.message === 'AbortError' || err.name === 'AbortError' || err.message === 'Operation cancelled');
+    if (isCancel) {
+      spinner.stop();
+      return;
+    }
     spinner.fail(`Restore failed: ${err}`);
     process.exit(1);
   }

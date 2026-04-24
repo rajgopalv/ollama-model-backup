@@ -17,10 +17,13 @@ export interface BackupOptions {
   dryRun?: boolean;
   rmAfterBackup?: boolean;
   ignoreChecksumVerification?: boolean;
+  signal?: AbortSignal;
   execFn?: (command: string) => Promise<{ stdout: string, stderr: string }>;
 }
 
 export async function backup(options: BackupOptions): Promise<void> {
+  options.signal?.throwIfAborted();
+
   const executor = options.execFn || execAsync;
   const usingDefaultModelLocation = !options.modelLocation && !process.env[ENV_VARS.MODEL_LOCATION];
   const modelLocation = options.modelLocation || process.env[ENV_VARS.MODEL_LOCATION] || DEFAULT_MODEL_LOCATION;
@@ -73,6 +76,7 @@ export async function backup(options: BackupOptions): Promise<void> {
     const successfulModelNames: string[] = [];
 
     for (const model of modelsToBackup) {
+      options.signal?.throwIfAborted();
       currentModelIndex++;
 
       if (options.dryRun) {
@@ -92,6 +96,7 @@ export async function backup(options: BackupOptions): Promise<void> {
           totalModels: modelsToBackup.length,
           checkBlobExists: true,
           ignoreChecksumVerification: options.ignoreChecksumVerification,
+          signal: options.signal,
         });
 
         successfulModelNames.push(model.name);
@@ -106,6 +111,10 @@ export async function backup(options: BackupOptions): Promise<void> {
           }
         }
       } catch (err) {
+        const isCancel = err instanceof Error && (err.message === 'AbortError' || err.name === 'AbortError' || err.message === 'Operation cancelled');
+        if (isCancel) {
+          throw err;
+        }
         failedCount++;
       }
     }
@@ -122,6 +131,11 @@ export async function backup(options: BackupOptions): Promise<void> {
       }
     }
   } catch (err) {
+    const isCancel = err instanceof Error && (err.message === 'AbortError' || err.name === 'AbortError' || err.message === 'Operation cancelled');
+    if (isCancel) {
+      spinner.stop();
+      return;
+    }
     spinner.fail(`Backup failed: ${err}`);
     process.exit(1);
   }

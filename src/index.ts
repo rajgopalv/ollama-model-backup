@@ -7,6 +7,20 @@ import { list } from './commands/list.js';
 import { ENV_VARS } from './constants.js';
 import { DEFAULT_MODEL_LOCATION } from './constants.js';
 
+// 1. Setup AbortController globally
+const controller = new AbortController();
+
+// 2. IMMEDIATE Signal Handling (Must be at the top)
+const handleExit = () => {
+  // Use synchronous log to ensure it prints before exit
+  process.stderr.write('\n\nOperation cancelled by user. Exiting...\n');
+  controller.abort();
+  process.exit(130);
+};
+
+process.on('SIGINT', handleExit);
+process.on('SIGTERM', handleExit);
+
 const cli = meow(`
   Usage
     $ ollama-model-backup <backup|restore|list> [options]
@@ -85,6 +99,7 @@ async function main() {
         dryRun: cli.flags.dryRun ?? undefined,
         rmAfterBackup: cli.flags.rmAfterBackup ?? undefined,
         ignoreChecksumVerification: cli.flags.ignoreChecksumVerification ?? undefined,
+        signal: controller.signal,
       });
     } else if (mode === 'restore') {
       await restore({
@@ -93,9 +108,13 @@ async function main() {
         models,
         dryRun: cli.flags.dryRun ?? undefined,
         ignoreChecksumVerification: cli.flags.ignoreChecksumVerification ?? undefined,
+        signal: controller.signal,
       });
     }
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      process.exit(130);
+    }
     console.error(`\nUnexpected error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }

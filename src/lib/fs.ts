@@ -1,17 +1,36 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import { Writable } from 'node:stream';
 import type { CopyProgress } from '../types.js';
 
-export async function calculateChecksum(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash('sha256');
-    const stream = createReadStream(filePath);
-    stream.on('data', (data) => hash.update(data));
-    stream.on('end', () => resolve(`sha256:${hash.digest('hex')}`));
-    stream.on('error', reject);
+export async function calculateChecksum(filePath: string, signal?: AbortSignal): Promise<string> {
+  signal?.throwIfAborted();
+
+  const hash = crypto.createHash('sha256');
+  
+  // Custom writable to update hash
+  const hashStream = new Writable({
+    write(chunk, encoding, callback) {
+      hash.update(chunk);
+      callback();
+    }
   });
+
+  try {
+    await pipeline(
+      fs.createReadStream(filePath),
+      hashStream,
+      { signal }
+    );
+    return `sha256:${hash.digest('hex')}`;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('AbortError');
+    }
+    throw err;
+  }
 }
 
 /**
@@ -21,35 +40,44 @@ export async function calculateChecksum(filePath: string): Promise<string> {
 export async function copyFileWithProgress(
   src: string,
   dest: string,
-  onProgress?: (progress: CopyProgress) => void
+  onProgress?: (progress: CopyProgress) => void,
+  signal?: AbortSignal
 ): Promise<void> {
+  signal?.throwIfAborted();
+
   const stats = await fs.promises.stat(src);
   const totalBytes = stats.size;
   let bytesCopied = 0;
 
   await fs.promises.mkdir(path.dirname(dest), { recursive: true });
 
-  return new Promise((resolve, reject) => {
-    const readStream = createReadStream(src);
-    const writeStream = createWriteStream(dest);
-
-    readStream.on('data', (chunk: Buffer) => {
-      bytesCopied += chunk.length;
-      if (onProgress) {
-        onProgress({
-          filename: path.basename(src),
-          bytesCopied,
-          totalBytes,
-        });
-      }
-    });
-
-    readStream.on('error', reject);
-    writeStream.on('error', reject);
-    writeStream.on('finish', resolve);
-
-    readStream.pipe(writeStream);
-  });
+  try {
+    // Pipeline manages the stream lifecycle and signal
+    await pipeline(
+      fs.createReadStream(src),
+      // We pass the data through to write stream while tracking progress
+      async function* (source) {
+        for await (const chunk of source) {
+          bytesCopied += chunk.length;
+          if (onProgress) {
+            onProgress({
+              filename: path.basename(src),
+              bytesCopied,
+              totalBytes,
+            });
+          }
+          yield chunk;
+        }
+      },
+      fs.createWriteStream(dest),
+      { signal }
+    );
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('AbortError');
+    }
+    throw err;
+  }
 }
 
 export async function copyDirRecursive(

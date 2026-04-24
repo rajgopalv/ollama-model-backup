@@ -13,6 +13,7 @@ export interface CopyModelOptions {
   totalModels: number;
   checkBlobExists?: boolean;
   ignoreChecksumVerification?: boolean;
+  signal?: AbortSignal;
   spinner?: {
     start: () => any;
     succeed: (text?: string) => any;
@@ -27,6 +28,7 @@ export async function copyModel(
   model: ModelInfo,
   options: CopyModelOptions
 ): Promise<void> {
+  options.signal?.throwIfAborted();
   let modelBytesCopied = 0;
 
   const modelSpinner = options.spinner || ora({
@@ -48,11 +50,14 @@ export async function copyModel(
         .slice(1)
     );
     const tempManifest = `${manifestDest}.tmp`;
-    await copyFileWithProgress(model.manifestPath, tempManifest);
+    
+    await copyFileWithProgress(model.manifestPath, tempManifest, undefined, options.signal);
     await fs.promises.rename(tempManifest, manifestDest);
 
     // 2. Copy Blobs (Atomic + Verification Step)
     for (const blob of model.blobs) {
+      options.signal?.throwIfAborted();
+
       const blobSrc = getBlobPath(options.srcBase, blob);
       const blobDest = getBlobPath(options.destBase, blob);
       const shortHash = blob.slice(0, 12);
@@ -73,7 +78,7 @@ export async function copyModel(
               continue;
             } else {
               modelSpinner.text = `${baseText} (Verifying existing blob ${shortHash}...)`;
-              const destHash = await calculateChecksum(blobDest);
+              const destHash = await calculateChecksum(blobDest, options.signal);
               if (destHash === blob) {
                 modelBytesCopied += srcStat.size;
                 continue;
@@ -90,12 +95,12 @@ export async function copyModel(
         modelSpinner.text = `${baseText} (Copying ${shortHash}...)`;
         await copyFileWithProgress(blobSrc, tempBlobDest, (p) => {
           modelBytesCopied = p.bytesCopied;
-        });
+        }, options.signal);
 
         // C. Verification step
         if (!options.ignoreChecksumVerification) {
           modelSpinner.text = `${baseText} (Verifying integrity of ${shortHash}...)`;
-          const destHash = await calculateChecksum(tempBlobDest);
+          const destHash = await calculateChecksum(tempBlobDest, options.signal);
           if (destHash !== blob) {
             if (fs.existsSync(tempBlobDest)) fs.unlinkSync(tempBlobDest);
             throw new Error(`Checksum verification failed for ${blob}. Expected ${blob}, got ${destHash}`);
@@ -111,7 +116,12 @@ export async function copyModel(
     modelSpinner.text = baseText;
     modelSpinner.succeed(`${model.name} (${formatBytes(model.totalSize)})`);
   } catch (err) {
-    modelSpinner.fail(`Failed to copy ${model.name}: ${err}`);
+    const isCancel = err instanceof Error && (err.name === 'AbortError' || err.message === 'AbortError');
+    if (isCancel) {
+      modelSpinner.fail(`Cancelled: ${model.name}`);
+    } else {
+      modelSpinner.fail(`Failed to copy ${model.name}: ${err}`);
+    }
     throw err;
   }
 }
